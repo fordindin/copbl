@@ -1997,6 +1997,31 @@ body package_method freebsd
  package_delete_command => "/usr/sbin/pkg_delete";
 }
 
+#
+# FreeBSD pkgng (or just simple pkg) is new and better oficial package manager
+#
+
+body package_method freebsd_pkgng
+{
+ package_changes => "individual";
+
+ package_list_command => "/usr/sbin/pkg info";
+
+ package_list_name_regex    => "([^\s]+)-.*";
+ package_list_version_regex => "[^\s]+-([^\s]+).*";
+
+ package_name_regex    => "([^\s]+)-.*";
+ package_version_regex => "[^\s]+-([^\s]+).*";
+
+ package_installed_regex => ".*";
+
+ package_name_convention => "$(name)-$(version)";
+
+
+ package_add_command => "/usr/sbin/pkg install -y";
+ package_delete_command => "/usr/sbin/pkg delete -y";
+}
+
 ##
 
 body package_method emerge
@@ -2130,7 +2155,7 @@ debian::
  package_list_version_regex => ".i\s+[^\s]+\s+([^\s]+).*";
  package_installed_regex => ".i.*"; # packages that have been uninstalled may be listed
  package_name_convention => "$(name)";
- package_list_update_ifelapsed => "240";		# 4 hours
+ package_list_update_ifelapsed => "240"; # 4 hours
 
 debian.have_aptitude::
    package_add_command => "/usr/bin/env DEBIAN_FRONTEND=noninteractive LC_ALL=C /usr/bin/aptitude -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef --assume-yes install";
@@ -2316,7 +2341,7 @@ vars:
   "stakeholders[acpid]" slist => { "cpu", "cpu0", "cpu1", "cpu2", "cpu3" };
   "stakeholders[mongod]" slist => { "mongo_in" };
   "stakeholders[postfix]" slist => { "smtp_in" };
-  "stakeholders[sendmail]" slist => { "smtp_in" };       
+  "stakeholders[sendmail]" slist => { "smtp_in" };
   "stakeholders[www]" slist => { "www_in", "wwws_in", "www_alt_in" };
   "stakeholders[ssh]" slist => { "ssh_in" };
   "stakeholders[mysql]" slist => { "mysql_in" };
@@ -2325,6 +2350,76 @@ vars:
   "stakeholders[rsyslog]" slist => { "syslog" };
   "stakeholders[tomcat5]" slist => { "www_alt_in" };
   "stakeholders[tomcat6]" slist => { "www_alt_in" };
+
+ freebsd::
+  "services" slist => {
+    "amd",
+    "apmd",
+    "auditd",
+    "auditdistd",
+    "bsnmpd",
+    "bthidd",
+    "ccd",
+    "cron",
+    "devd",
+    "ftpd",
+    "gssd",
+    "hastd",
+    "hcsecd",
+    "hostapd",
+    "hostid",
+    "inetd",
+    "ipxrouted",
+    "kadmind",
+    "kld",
+    "kpasswdd",
+    "lockd",
+    "lpd",
+    "motd",
+    "mountd",
+    "moused",
+    "mroute6d",
+    "mrouted",
+    "named",
+    "natd",
+    "nfscbd",
+    "nfsd",
+    "nfsuserd",
+    "nscd",
+    "ntpd",
+    "powerd",
+    "pppoed",
+    "rarpd",
+    "route6d",
+    "routed",
+    "rpcbind",
+    "rtadvd",
+    "rtsold",
+    "sdpd",
+    "sendmail",
+    "sshd",
+    "statd",
+    "syslogd",
+    "timed",
+    "watchdogd",
+    "ypbind",
+    "yppasswdd",
+    "ypserv",
+    "ypupdated",
+    "ypxfrd",
+  },
+  comment => "freebsd standard services are pretty unfied, so we can just generate
+promises by list. This is list of FreeBSD base services",
+  policy => "overridable";
+
+  "actions" slist => { "stop", "start" };
+  "${actions}command[${services}]" string => "/usr/sbin/service ${services} ${actions}";
+  "pattern[${services}]" string => ".*${services}.*";
+
+  "option[stop]" string => '"NO"';
+  "option[start]" string => '"YES"';
+  "rc_conf_options_${service}[${service}_enable]" string => "${option[${state}]}",
+  comment=> "generate proper values for rc.conf";
 
  linux::
 
@@ -2706,6 +2801,13 @@ classes:
              comment => "Check if to stop a service";
 
 # Do we want to include the packages here too?
+
+files:
+  freebsd::
+    "/etc/rc.conf"
+      create => "true",
+      edit_line => set_variable_values("standard_services.rc_conf_options_${service}"),
+      comment => "We should set proper values in rc.conf to disable or enable services";
 
 processes:
 
